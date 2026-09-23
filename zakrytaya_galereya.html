@@ -1,0 +1,2268 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+
+<title>Закрытая галерея</title>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+:root{
+ --bg:#09090b;
+ --panel:#151518;
+ --panel2:#202024;
+ --text:#f5f5f7;
+ --muted:#9b9ba4;
+ --red:#e53935;
+ --line:#2a2a30;
+}
+
+*{box-sizing:border-box}
+
+body{
+ margin:0;
+ background:var(--bg);
+ color:var(--text);
+ font:16px system-ui,-apple-system,Segoe UI,sans-serif;
+}
+
+button,input{font:inherit}
+button{cursor:pointer}
+.hidden{display:none!important}
+
+.wrap{
+ width:min(100%,1050px);
+ margin:auto;
+ padding:18px 14px 100px;
+}
+
+header{
+ display:flex;
+ align-items:center;
+ justify-content:space-between;
+ gap:10px;
+ margin-bottom:18px;
+}
+
+h1{
+ font-size:24px;
+ margin:0;
+}
+
+h2{
+ margin-top:0;
+}
+
+.btn{
+ border:1px solid var(--line);
+ background:var(--panel2);
+ color:var(--text);
+ border-radius:12px;
+ padding:10px 14px;
+}
+
+.btn.red{
+ background:var(--red);
+ border-color:var(--red);
+}
+
+.btn.danger{
+ color:#ff7773;
+}
+
+.btn:disabled{
+ opacity:.5;
+}
+
+.auth{
+ min-height:100dvh;
+ display:grid;
+ place-items:center;
+ padding:20px;
+}
+
+.authbox{
+ width:min(100%,390px);
+ background:var(--panel);
+ padding:24px;
+ border:1px solid var(--line);
+ border-radius:18px;
+}
+
+.authbox h1{
+ margin-bottom:8px;
+}
+
+.muted{
+ color:var(--muted);
+ font-size:14px;
+}
+
+.field{
+ margin:12px 0;
+}
+
+.field label{
+ display:block;
+ color:var(--muted);
+ font-size:13px;
+ margin-bottom:6px;
+}
+
+.field input{
+ width:100%;
+ padding:12px;
+ border-radius:11px;
+ border:1px solid var(--line);
+ background:#0e0e11;
+ color:var(--text);
+ outline:none;
+}
+
+.field input:focus{
+ border-color:#555;
+}
+
+.msg{
+ min-height:22px;
+ color:#ff7773;
+ font-size:14px;
+ margin:10px 0;
+}
+
+/* TOP TOOLBAR */
+
+.toolbar{
+ display:flex;
+ gap:8px;
+ align-items:center;
+ margin-bottom:16px;
+ flex-wrap:wrap;
+}
+
+.search{
+ flex:1;
+ min-width:150px;
+ padding:11px 13px;
+ border-radius:12px;
+ border:1px solid var(--line);
+ background:var(--panel);
+ color:var(--text);
+}
+
+.switch{
+ display:flex;
+ background:var(--panel);
+ border:1px solid var(--line);
+ border-radius:12px;
+ padding:3px;
+ margin-bottom:16px;
+}
+
+.switch button{
+ flex:1;
+ border:0;
+ background:transparent;
+ color:var(--muted);
+ padding:9px 12px;
+ border-radius:9px;
+}
+
+.switch button.active{
+ background:var(--panel2);
+ color:white;
+}
+
+/* PHOTOS */
+
+.grid{
+ display:grid;
+ grid-template-columns:repeat(3,minmax(0,1fr));
+ gap:10px;
+}
+
+.card{
+ position:relative;
+ aspect-ratio:3/4;
+ border-radius:13px;
+ overflow:hidden;
+ background:var(--panel);
+ border:1px solid var(--line);
+}
+
+.card img{
+ width:100%;
+ height:100%;
+ display:block;
+ object-fit:cover;
+}
+
+.card .name{
+ position:absolute;
+ bottom:0;
+ left:0;
+ right:0;
+ padding:26px 8px 8px;
+ background:linear-gradient(transparent,rgba(0,0,0,.85));
+ font-size:13px;
+ font-weight:600;
+}
+
+/* FOLDERS */
+
+.folder-grid{
+ display:grid;
+ grid-template-columns:repeat(3,minmax(0,1fr));
+ gap:10px;
+}
+
+.folder{
+ position:relative;
+ min-height:130px;
+ background:var(--panel);
+ border:1px solid var(--line);
+ border-radius:15px;
+ padding:16px;
+ cursor:pointer;
+ display:flex;
+ flex-direction:column;
+ justify-content:center;
+}
+
+.folder-icon{
+ font-size:42px;
+ margin-bottom:7px;
+}
+
+.folder-name{
+ font-weight:700;
+ word-break:break-word;
+ padding-right:30px;
+}
+
+.folder-count{
+ color:var(--muted);
+ font-size:13px;
+ margin-top:5px;
+}
+
+.folder-menu{
+ position:absolute;
+ right:8px;
+ top:8px;
+ width:32px;
+ height:32px;
+ border:0;
+ border-radius:8px;
+ background:transparent;
+ color:var(--muted);
+ font-size:20px;
+}
+
+.folder-menu:hover{
+ background:var(--panel2);
+ color:white;
+}
+
+/* EMPTY */
+
+.empty{
+ text-align:center;
+ color:var(--muted);
+ padding:50px 10px;
+}
+
+/* UPLOAD */
+
+.uploadbox{
+ background:var(--panel);
+ border:1px dashed #444;
+ padding:18px;
+ border-radius:15px;
+ margin-bottom:18px;
+}
+
+.uploadbox input{
+ width:100%;
+}
+
+/* VIEWER */
+
+.viewer{
+ position:fixed;
+ inset:0;
+ background:rgba(0,0,0,.96);
+ z-index:20;
+ display:flex;
+ align-items:center;
+ justify-content:center;
+}
+
+.viewer img{
+ max-width:92vw;
+ max-height:86vh;
+ object-fit:contain;
+}
+
+.vbtn{
+ position:fixed;
+ width:45px;
+ height:45px;
+ border:0;
+ border-radius:50%;
+ background:rgba(40,40,45,.9);
+ color:white;
+ font-size:25px;
+ z-index:21;
+}
+
+.close{
+ top:15px;
+ right:15px;
+}
+
+.prev{
+ left:14px;
+ top:50%;
+ transform:translateY(-50%);
+}
+
+.next{
+ right:14px;
+ top:50%;
+ transform:translateY(-50%);
+}
+
+.vbottom{
+ position:fixed;
+ bottom:18px;
+ left:0;
+ right:0;
+ display:flex;
+ justify-content:center;
+ gap:10px;
+ z-index:21;
+}
+
+.caption{
+ position:fixed;
+ bottom:68px;
+ left:15px;
+ right:15px;
+ text-align:center;
+ color:#ddd;
+}
+
+/* NAV */
+
+.nav{
+ position:fixed;
+ bottom:0;
+ left:0;
+ right:0;
+ background:#111114;
+ border-top:1px solid var(--line);
+ display:flex;
+ justify-content:center;
+ gap:4px;
+ padding:8px max(8px,env(safe-area-inset-left))
+ calc(8px + env(safe-area-inset-bottom));
+ z-index:10;
+}
+
+.nav button{
+ flex:1;
+ max-width:220px;
+ border:0;
+ background:transparent;
+ color:var(--muted);
+ padding:8px;
+}
+
+.nav button.active{
+ color:white;
+}
+
+/* MODAL */
+
+.modal{
+ position:fixed;
+ inset:0;
+ background:rgba(0,0,0,.7);
+ display:grid;
+ place-items:center;
+ z-index:30;
+ padding:16px;
+}
+
+.modalbox{
+ width:min(100%,430px);
+ max-height:90vh;
+ overflow:auto;
+ background:var(--panel);
+ padding:20px;
+ border-radius:18px;
+ border:1px solid var(--line);
+}
+
+.row{
+ display:flex;
+ gap:10px;
+}
+
+.row>*{
+ flex:1;
+}
+
+.progress{
+ height:5px;
+ background:#29292e;
+ border-radius:10px;
+ overflow:hidden;
+ margin-top:10px;
+}
+
+.progress i{
+ display:block;
+ height:100%;
+ width:0;
+ background:var(--red);
+}
+
+/* FOLDER HEADER */
+
+.folder-header{
+ display:flex;
+ align-items:center;
+ gap:10px;
+ margin-bottom:15px;
+}
+
+.back-btn{
+ border:1px solid var(--line);
+ background:var(--panel2);
+ color:white;
+ border-radius:10px;
+ padding:8px 12px;
+}
+
+.folder-header h2{
+ margin:0;
+ font-size:20px;
+ flex:1;
+}
+
+@media(max-width:650px){
+
+ .grid,
+ .folder-grid{
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:7px;
+ }
+
+ .card .name{
+  font-size:11px;
+  padding:20px 5px 6px;
+ }
+
+ .wrap{
+  padding-left:10px;
+  padding-right:10px;
+ }
+
+ h1{
+  font-size:21px;
+ }
+
+ .folder{
+  min-height:115px;
+  padding:11px;
+ }
+
+ .folder-icon{
+  font-size:34px;
+ }
+
+ .folder-name{
+  font-size:14px;
+ }
+
+ .folder-count{
+  font-size:11px;
+ }
+
+ .toolbar .btn{
+  padding:9px 11px;
+ }
+}
+</style>
+</head>
+
+<body>
+
+<!-- ================= AUTH ================= -->
+
+<div id="auth" class="auth">
+
+ <div class="authbox">
+
+  <h1>🔒 Закрытая галерея</h1>
+
+  <p class="muted">
+   Войдите, чтобы открыть свою галерею.
+  </p>
+
+  <div class="field">
+   <label>Email</label>
+   <input id="email" type="email" autocomplete="email">
+  </div>
+
+  <div class="field">
+   <label>Пароль</label>
+   <input id="password" type="password" autocomplete="current-password">
+  </div>
+
+  <div id="authMsg" class="msg"></div>
+
+  <button id="loginBtn" class="btn red" style="width:100%">
+   Войти
+  </button>
+
+ </div>
+
+</div>
+
+
+<!-- ================= APP ================= -->
+
+<main id="app" class="wrap hidden">
+
+ <header>
+  <h1>Моя галерея</h1>
+  <button id="logout" class="btn">Выйти</button>
+ </header>
+
+
+ <!-- ========== GALLERY ========== -->
+
+ <section id="galleryPage">
+
+  <div class="switch">
+
+   <button id="photosTab" class="active">
+    🖼 Фото
+   </button>
+
+   <button id="foldersTab">
+    📁 Папки
+   </button>
+
+  </div>
+
+
+  <!-- ALL PHOTOS -->
+
+  <div id="photosView">
+
+   <div class="toolbar">
+
+    <input
+     id="search"
+     class="search"
+     placeholder="Поиск по названию…"
+    >
+
+    <button id="addBtn" class="btn red">
+     ＋ Фото
+    </button>
+
+   </div>
+
+   <div id="grid" class="grid"></div>
+
+   <div id="empty" class="empty hidden">
+    Фотографий пока нет.
+   </div>
+
+  </div>
+
+
+  <!-- FOLDERS -->
+
+  <div id="foldersView" class="hidden">
+
+   <div class="toolbar">
+
+    <button id="addFolderBtn" class="btn red">
+     ＋ Папка
+    </button>
+
+   </div>
+
+   <div id="folderGrid" class="folder-grid"></div>
+
+   <div id="folderEmpty" class="empty hidden">
+    Папок пока нет.
+   </div>
+
+  </div>
+
+
+  <!-- OPEN FOLDER -->
+
+  <div id="folderPage" class="hidden">
+
+   <div class="folder-header">
+
+    <button id="backFolders" class="back-btn">
+     ←
+    </button>
+
+    <h2 id="folderTitle"></h2>
+
+    <button id="folderAddPhoto" class="btn red">
+     ＋ Фото
+    </button>
+
+   </div>
+
+   <div class="toolbar">
+
+    <input
+     id="folderSearch"
+     class="search"
+     placeholder="Поиск в папке…"
+    >
+
+   </div>
+
+   <div id="folderPhotosGrid" class="grid"></div>
+
+   <div id="folderPhotosEmpty" class="empty hidden">
+    В этой папке пока нет фотографий.
+   </div>
+
+  </div>
+
+ </section>
+
+
+ <!-- ========== PROFILE ========== -->
+
+ <section id="profilePage" class="hidden">
+
+  <div class="uploadbox">
+
+   <h2>Профиль</h2>
+
+   <p id="profileEmail" class="muted"></p>
+
+   <p id="count"></p>
+
+   <p id="folderCount"></p>
+
+   <button id="profileAdd" class="btn red">
+    Добавить фотографии
+   </button>
+
+  </div>
+
+ </section>
+
+</main>
+
+
+<!-- ================= NAV ================= -->
+
+<nav id="nav" class="nav hidden">
+
+ <button data-page="gallery" class="active">
+  🖼 Галерея
+ </button>
+
+ <button data-page="profile">
+  👤 Профиль
+ </button>
+
+</nav>
+
+
+<!-- FILE INPUT -->
+
+<input
+ id="fileInput"
+ type="file"
+ accept="image/*"
+ multiple
+ class="hidden"
+>
+
+
+<!-- ================= VIEWER ================= -->
+
+<div id="viewer" class="viewer hidden">
+
+ <button class="vbtn close" id="vClose">
+  ×
+ </button>
+
+ <button class="vbtn prev" id="vPrev">
+  ‹
+ </button>
+
+ <img id="vImg" alt="">
+
+ <button class="vbtn next" id="vNext">
+  ›
+ </button>
+
+ <div id="vCaption" class="caption"></div>
+
+ <div class="vbottom">
+
+  <button id="vDelete" class="btn">
+   Удалить
+  </button>
+
+ </div>
+
+</div>
+
+
+<!-- ================= PHOTO MODAL ================= -->
+
+<div id="nameModal" class="modal hidden">
+
+ <div class="modalbox">
+
+  <h2>Добавить фото</h2>
+
+  <p id="uploadLocation" class="muted"></p>
+
+  <p class="muted">
+   Можно выбрать несколько файлов.
+   Для каждого можно указать название.
+  </p>
+
+  <div id="fileNames"></div>
+
+  <div class="row">
+
+   <button id="cancelUpload" class="btn">
+    Отмена
+   </button>
+
+   <button id="startUpload" class="btn red">
+    Загрузить
+   </button>
+
+  </div>
+
+  <div class="progress">
+   <i id="bar"></i>
+  </div>
+
+ </div>
+
+</div>
+
+
+<!-- ================= FOLDER MODAL ================= -->
+
+<div id="folderModal" class="modal hidden">
+
+ <div class="modalbox">
+
+  <h2 id="folderModalTitle">
+   Новая папка
+  </h2>
+
+  <div class="field">
+
+   <label>Название папки</label>
+
+   <input
+    id="folderNameInput"
+    placeholder="Например: Класс превосходства"
+    maxlength="100"
+   >
+
+  </div>
+
+  <div id="folderMsg" class="msg"></div>
+
+  <div class="row">
+
+   <button id="cancelFolder" class="btn">
+    Отмена
+   </button>
+
+   <button id="saveFolder" class="btn red">
+    Создать
+   </button>
+
+  </div>
+
+ </div>
+
+</div>
+
+
+<script>
+
+/* =========================================================
+   SUPABASE
+   ========================================================= */
+
+const SUPABASE_URL =
+"https://hvmvgrkoazojrpmtbnzj.supabase.co";
+
+const SUPABASE_ANON_KEY =
+"sb_publishable_Jl93cw1rKXPSrzsoRx3mNw_euPMZEvE";
+
+const sb =
+supabase.createClient(
+ SUPABASE_URL,
+ SUPABASE_ANON_KEY
+);
+
+
+/* =========================================================
+   VARIABLES
+   ========================================================= */
+
+const $ = id => document.getElementById(id);
+
+let photos = [];
+let folders = [];
+
+let viewerIndex = -1;
+
+let pendingFiles = [];
+
+let currentFolderId = null;
+
+let currentFolderName = "";
+
+let editingFolderId = null;
+
+let touchX = 0;
+
+
+/* =========================================================
+   HELPERS
+   ========================================================= */
+
+function configured(){
+
+ return !SUPABASE_URL.includes("ВСТАВЬ_") &&
+        !SUPABASE_ANON_KEY.includes("ВСТАВЬ_");
+
+}
+
+
+function msg(t){
+
+ $("authMsg").textContent = t || "";
+
+}
+
+
+function esc(s){
+
+ return String(s ?? "")
+ .replace(/[&<>"']/g,m=>({
+
+  "&":"&amp;",
+  "<":"&lt;",
+  ">":"&gt;",
+  '"':"&quot;",
+  "'":"&#039;"
+
+ }[m]));
+
+}
+
+
+/* =========================================================
+   AUTH
+   ========================================================= */
+
+async function boot(){
+
+ if(!configured()){
+
+  msg(
+   "Сначала вставьте SUPABASE_URL и SUPABASE_ANON_KEY."
+  );
+
+  $("loginBtn").disabled = true;
+
+  return;
+
+ }
+
+ const {
+  data:{session}
+ } = await sb.auth.getSession();
+
+ if(session){
+
+  showApp(session.user);
+
+ }else{
+
+  showAuth();
+
+ }
+
+ sb.auth.onAuthStateChange(
+  (_event,session)=>{
+
+   if(session){
+
+    showApp(session.user);
+
+   }else{
+
+    showAuth();
+
+   }
+
+  }
+ );
+
+}
+
+
+function showAuth(){
+
+ $("auth").classList.remove("hidden");
+
+ $("app").classList.add("hidden");
+
+ $("nav").classList.add("hidden");
+
+}
+
+
+async function showApp(user){
+
+ $("auth").classList.add("hidden");
+
+ $("app").classList.remove("hidden");
+
+ $("nav").classList.remove("hidden");
+
+ $("profileEmail").textContent =
+  user.email || "";
+
+ await loadAll();
+
+}
+
+
+/* =========================================================
+   LOAD DATA
+   ========================================================= */
+
+async function loadAll(){
+
+ await loadFolders();
+
+ await loadPhotos();
+
+}
+
+
+/* =========================================================
+   LOAD FOLDERS
+   ========================================================= */
+
+async function loadFolders(){
+
+ const {
+  data,
+  error
+ } = await sb
+  .from("folders")
+  .select("*")
+  .order("created_at",{ascending:false});
+
+ if(error){
+
+  alert(error.message);
+
+  return;
+
+ }
+
+ folders = data || [];
+
+ renderFolders();
+
+}
+
+
+/* =========================================================
+   LOAD PHOTOS
+   ========================================================= */
+
+async function loadPhotos(){
+
+ const {
+  data,
+  error
+ } = await sb
+  .from("photos")
+  .select("*")
+  .order("created_at",{ascending:false});
+
+ if(error){
+
+  alert(error.message);
+
+  return;
+
+ }
+
+ photos = data || [];
+
+ render();
+
+ renderFolderPhotos();
+
+ updateProfile();
+
+}
+
+
+/* =========================================================
+   PROFILE
+   ========================================================= */
+
+function updateProfile(){
+
+ $("count").textContent =
+  `Фотографий: ${photos.length}`;
+
+ $("folderCount").textContent =
+  `Папок: ${folders.length}`;
+
+}
+
+
+/* =========================================================
+   PHOTO RENDER
+   ========================================================= */
+
+function render(){
+
+ const q =
+  $("search").value.trim().toLowerCase();
+
+ const list =
+  photos.filter(p =>
+   (p.title || "")
+    .toLowerCase()
+    .includes(q)
+  );
+
+ $("grid").innerHTML =
+  list.map(p=>{
+
+   const i =
+    photos.findIndex(
+     x=>x.id===p.id
+    );
+
+   return `
+
+    <div class="card" data-i="${i}">
+
+     <img
+      src="${esc(p.public_url)}"
+      loading="lazy"
+      alt=""
+     >
+
+     <div class="name">
+      ${esc(p.title || "Без названия")}
+     </div>
+
+    </div>
+
+   `;
+
+  }).join("");
+
+
+ $("empty").classList.toggle(
+  "hidden",
+  list.length !== 0
+ );
+
+
+ [
+  ...document.querySelectorAll("#grid .card")
+ ].forEach(c=>{
+
+  c.onclick = () =>
+   openViewer(+c.dataset.i);
+
+ });
+
+}
+
+
+/* =========================================================
+   FOLDER RENDER
+   ========================================================= */
+
+function renderFolders(){
+
+ const grid = $("folderGrid");
+
+ grid.innerHTML =
+  folders.map(folder=>{
+
+   const count =
+    photos.filter(
+     p=>p.folder_id===folder.id
+    ).length;
+
+   return `
+
+    <div
+     class="folder"
+     data-folder="${folder.id}"
+    >
+
+     <button
+      class="folder-menu"
+      data-menu="${folder.id}"
+     >
+      ⋮
+     </button>
+
+     <div class="folder-icon">
+      📁
+     </div>
+
+     <div class="folder-name">
+      ${esc(folder.name)}
+     </div>
+
+     <div class="folder-count">
+      ${count} фото
+     </div>
+
+    </div>
+
+   `;
+
+  }).join("");
+
+
+ $("folderEmpty").classList.toggle(
+  "hidden",
+  folders.length !== 0
+ );
+
+
+ document
+  .querySelectorAll(".folder")
+  .forEach(el=>{
+
+   el.onclick = e=>{
+
+    if(e.target.closest(".folder-menu"))
+     return;
+
+    openFolder(el.dataset.folder);
+
+   };
+
+  });
+
+
+ document
+  .querySelectorAll(".folder-menu")
+  .forEach(btn=>{
+
+   btn.onclick = e=>{
+
+    e.stopPropagation();
+
+    folderMenu(btn.dataset.menu);
+
+   };
+
+  });
+
+
+ updateProfile();
+
+}
+
+
+/* =========================================================
+   OPEN FOLDER
+   ========================================================= */
+
+function openFolder(id){
+
+ const folder =
+  folders.find(f=>f.id===id);
+
+ if(!folder)return;
+
+ currentFolderId = id;
+
+ currentFolderName = folder.name;
+
+ $("folderTitle").textContent =
+  folder.name;
+
+ $("foldersView").classList.add("hidden");
+
+ $("photosView").classList.add("hidden");
+
+ $("folderPage").classList.remove("hidden");
+
+ $("folderSearch").value = "";
+
+ renderFolderPhotos();
+
+}
+
+
+/* =========================================================
+   FOLDER PHOTOS
+   ========================================================= */
+
+function renderFolderPhotos(){
+
+ if(!currentFolderId)
+  return;
+
+ const q =
+  $("folderSearch").value
+   .trim()
+   .toLowerCase();
+
+ const list =
+  photos.filter(p=>
+   p.folder_id===currentFolderId &&
+   (p.title || "")
+    .toLowerCase()
+    .includes(q)
+  );
+
+ $("folderPhotosGrid").innerHTML =
+  list.map(p=>{
+
+   const i =
+    photos.findIndex(
+     x=>x.id===p.id
+    );
+
+   return `
+
+    <div
+     class="card"
+     data-i="${i}"
+    >
+
+     <img
+      src="${esc(p.public_url)}"
+      loading="lazy"
+      alt=""
+     >
+
+     <div class="name">
+      ${esc(p.title || "Без названия")}
+     </div>
+
+    </div>
+
+   `;
+
+  }).join("");
+
+
+ $("folderPhotosEmpty").classList.toggle(
+  "hidden",
+  list.length !== 0
+ );
+
+
+ document
+  .querySelectorAll("#folderPhotosGrid .card")
+  .forEach(c=>{
+
+   c.onclick = () =>
+    openViewer(+c.dataset.i);
+
+  });
+
+}
+
+
+/* =========================================================
+   FOLDER SEARCH
+   ========================================================= */
+
+$("folderSearch").oninput =
+ renderFolderPhotos;
+
+
+/* =========================================================
+   GENERAL SEARCH
+   ========================================================= */
+
+$("search").oninput =
+ render;
+
+
+/* =========================================================
+   CREATE FOLDER
+   ========================================================= */
+
+$("addFolderBtn").onclick = ()=>{
+
+ editingFolderId = null;
+
+ $("folderModalTitle").textContent =
+  "Новая папка";
+
+ $("folderNameInput").value = "";
+
+ $("folderMsg").textContent = "";
+
+ $("saveFolder").textContent =
+  "Создать";
+
+ $("folderModal").classList.remove(
+  "hidden"
+ );
+
+ setTimeout(
+  ()=>$("folderNameInput").focus(),
+  50
+ );
+
+};
+
+
+$("cancelFolder").onclick = ()=>{
+
+ $("folderModal").classList.add(
+  "hidden"
+ );
+
+};
+
+
+$("saveFolder").onclick =
+ async ()=>{
+
+  const name =
+   $("folderNameInput")
+    .value
+    .trim();
+
+  if(!name){
+
+   $("folderMsg").textContent =
+    "Введите название папки.";
+
+   return;
+
+  }
+
+
+  const {
+   data:{user}
+  } =
+   await sb.auth.getUser();
+
+  if(!user)return;
+
+
+  $("saveFolder").disabled = true;
+
+
+  if(editingFolderId){
+
+   const {
+    error
+   } =
+    await sb
+     .from("folders")
+     .update({
+      name:name
+     })
+     .eq(
+      "id",
+      editingFolderId
+     );
+
+   if(error){
+
+    $("folderMsg").textContent =
+     error.message;
+
+    $("saveFolder").disabled =
+     false;
+
+    return;
+
+   }
+
+  }else{
+
+   const {
+    error
+   } =
+    await sb
+     .from("folders")
+     .insert({
+      user_id:user.id,
+      name:name
+     });
+
+   if(error){
+
+    $("folderMsg").textContent =
+     error.message;
+
+    $("saveFolder").disabled =
+     false;
+
+    return;
+
+   }
+
+  }
+
+
+  $("saveFolder").disabled =
+   false;
+
+  $("folderModal").classList.add(
+   "hidden"
+  );
+
+  await loadFolders();
+
+ };
+
+
+/* =========================================================
+   FOLDER MENU
+   ========================================================= */
+
+async function folderMenu(id){
+
+ const folder =
+  folders.find(
+   f=>f.id===id
+  );
+
+ if(!folder)return;
+
+
+ const action =
+  prompt(
+   `Папка: ${folder.name}\n\n` +
+   `1 — Переименовать\n` +
+   `2 — Удалить папку\n\n` +
+   `Введите 1 или 2`
+  );
+
+
+ if(action==="1"){
+
+  editingFolderId = id;
+
+  $("folderModalTitle").textContent =
+   "Переименовать папку";
+
+  $("folderNameInput").value =
+   folder.name;
+
+  $("folderMsg").textContent = "";
+
+  $("saveFolder").textContent =
+   "Сохранить";
+
+  $("folderModal").classList.remove(
+   "hidden"
+  );
+
+  setTimeout(
+   ()=>$("folderNameInput").focus(),
+   50
+  );
+
+ }
+
+
+ if(action==="2"){
+
+  const folderPhotos =
+   photos.filter(
+    p=>p.folder_id===id
+   );
+
+
+  const ok =
+   confirm(
+    `Удалить папку «${folder.name}»?\n\n` +
+    `Фотографии внутри папки не будут удалены — ` +
+    `они останутся в общей галерее.`
+   );
+
+  if(!ok)return;
+
+
+  const {
+   error
+  } =
+   await sb
+    .from("folders")
+    .delete()
+    .eq("id",id);
+
+
+  if(error){
+
+   alert(error.message);
+
+   return;
+
+  }
+
+
+  if(currentFolderId===id){
+
+   currentFolderId = null;
+
+   $("folderPage")
+    .classList.add("hidden");
+
+   $("foldersView")
+    .classList.remove("hidden");
+
+  }
+
+
+  await loadAll();
+
+ }
+
+}
+
+
+/* =========================================================
+   BACK TO FOLDERS
+   ========================================================= */
+
+$("backFolders").onclick = ()=>{
+
+ currentFolderId = null;
+
+ $("folderPage")
+  .classList.add("hidden");
+
+ $("foldersView")
+  .classList.remove("hidden");
+
+};
+
+
+/* =========================================================
+   PHOTO SELECT
+   ========================================================= */
+
+function chooseFiles(){
+
+ $("fileInput").click();
+
+}
+
+
+$("addBtn").onclick =
+ chooseFiles;
+
+$("profileAdd").onclick =
+ chooseFiles;
+
+$("folderAddPhoto").onclick =
+ chooseFiles;
+
+
+/* =========================================================
+   FILE INPUT
+   ========================================================= */
+
+$("fileInput").onchange = ()=>{
+
+ pendingFiles =
+  [...$("fileInput").files];
+
+ if(!pendingFiles.length)
+  return;
+
+
+ let locationText =
+  "Общая галерея";
+
+
+ if(currentFolderId){
+
+  locationText =
+   `Папка: ${currentFolderName}`;
+
+ }
+
+
+ $("uploadLocation").textContent =
+  locationText;
+
+
+ $("fileNames").innerHTML =
+  pendingFiles.map((f,i)=>`
+
+   <div class="field">
+
+    <label>
+     ${esc(f.name)}
+    </label>
+
+    <input
+     data-title="${i}"
+     placeholder="Название"
+     value="${esc(
+      f.name.replace(/\.[^.]+$/,"")
+     )}"
+    >
+
+   </div>
+
+  `).join("");
+
+
+ $("nameModal")
+  .classList.remove("hidden");
+
+};
+
+
+/* =========================================================
+   CANCEL UPLOAD
+   ========================================================= */
+
+$("cancelUpload").onclick = ()=>{
+
+ $("nameModal")
+  .classList.add("hidden");
+
+ pendingFiles = [];
+
+ $("fileInput").value = "";
+
+};
+
+
+/* =========================================================
+   UPLOAD
+   ========================================================= */
+
+$("startUpload").onclick =
+ uploadFiles;
+
+
+async function uploadFiles(){
+
+ const {
+  data:{user}
+ } =
+  await sb.auth.getUser();
+
+ if(!user)return;
+
+
+ $("startUpload").disabled = true;
+
+
+ let done = 0;
+
+
+ const inputs =
+  [...document.querySelectorAll(
+   "[data-title]"
+  )];
+
+
+ for(
+  let i=0;
+  i<pendingFiles.length;
+  i++
+ ){
+
+  const f =
+   pendingFiles[i];
+
+
+  const ext =
+   (
+    f.name
+     .split(".")
+     .pop() ||
+    "jpg"
+   )
+   .toLowerCase()
+   .replace(
+    /[^a-z0-9]/g,
+    ""
+   );
+
+
+  /*
+   * Фото хранятся внутри папки
+   * пользователя в Storage.
+   *
+   * Папки сайта при этом
+   * определяются через folder_id.
+   */
+
+  const path =
+   `${user.id}/${crypto.randomUUID()}.${ext}`;
+
+
+  const up =
+   await sb
+    .storage
+    .from("photos")
+    .upload(
+     path,
+     f,
+     {
+      upsert:false,
+      contentType:f.type
+     }
+    );
+
+
+  if(up.error){
+
+   alert(
+    `Ошибка ${f.name}: ${up.error.message}`
+   );
+
+   continue;
+
+  }
+
+
+  const {
+   data:pub
+  } =
+   sb
+    .storage
+    .from("photos")
+    .getPublicUrl(path);
+
+
+  const title =
+   inputs[i]?.value?.trim() ||
+   f.name;
+
+
+  const {
+   error
+  } =
+   await sb
+    .from("photos")
+    .insert({
+
+     user_id:user.id,
+
+     title:title,
+
+     storage_path:path,
+
+     public_url:pub.publicUrl,
+
+     folder_id:
+      currentFolderId || null
+
+    });
+
+
+  if(error){
+
+   await sb
+    .storage
+    .from("photos")
+    .remove([path]);
+
+   alert(error.message);
+
+   continue;
+
+  }
+
+
+  done++;
+
+
+  $("bar").style.width =
+   Math.round(
+    done /
+    pendingFiles.length *
+    100
+   ) + "%";
+
+ }
+
+
+ $("startUpload").disabled =
+  false;
+
+
+ $("nameModal")
+  .classList.add("hidden");
+
+
+ pendingFiles = [];
+
+ $("fileInput").value = "";
+
+ $("bar").style.width = "0";
+
+
+ await loadAll();
+
+}
+
+
+/* =========================================================
+   VIEWER
+   ========================================================= */
+
+function openViewer(i){
+
+ if(i<0 || !photos[i])
+  return;
+
+ viewerIndex = i;
+
+ updateViewer();
+
+ $("viewer")
+  .classList.remove("hidden");
+
+ document.body.style.overflow =
+  "hidden";
+
+}
+
+
+function updateViewer(){
+
+ const p =
+  photos[viewerIndex];
+
+ if(!p)return;
+
+ $("vImg").src =
+  p.public_url;
+
+ $("vCaption").textContent =
+  p.title ||
+  "Без названия";
+
+}
+
+
+function closeViewer(){
+
+ $("viewer")
+  .classList.add("hidden");
+
+ document.body.style.overflow =
+  "";
+
+}
+
+
+function next(){
+
+ if(!photos.length)
+  return;
+
+ viewerIndex =
+  (viewerIndex + 1) %
+  photos.length;
+
+ updateViewer();
+
+}
+
+
+function prev(){
+
+ if(!photos.length)
+  return;
+
+ viewerIndex =
+  (viewerIndex - 1 + photos.length) %
+  photos.length;
+
+ updateViewer();
+
+}
+
+
+/* =========================================================
+   VIEWER BUTTONS
+   ========================================================= */
+
+$("vClose").onclick =
+ closeViewer;
+
+$("vNext").onclick =
+ next;
+
+$("vPrev").onclick =
+ prev;
+
+
+document.addEventListener(
+ "keydown",
+ e=>{
+
+  if(
+   $("viewer")
+    .classList
+    .contains("hidden")
+  )
+   return;
+
+
+  if(e.key==="Escape")
+   closeViewer();
+
+  if(e.key==="ArrowRight")
+   next();
+
+  if(e.key==="ArrowLeft")
+   prev();
+
+ }
+);
+
+
+/* =========================================================
+   SWIPE
+   ========================================================= */
+
+$("viewer").addEventListener(
+ "touchstart",
+ e=>{
+
+  touchX =
+   e.changedTouches[0].clientX;
+
+ },
+ {
+  passive:true
+ }
+);
+
+
+$("viewer").addEventListener(
+ "touchend",
+ e=>{
+
+  const dx =
+   e.changedTouches[0].clientX -
+   touchX;
+
+
+  if(Math.abs(dx)>50){
+
+   if(dx<0)
+    next();
+   else
+    prev();
+
+  }
+
+ },
+ {
+  passive:true
+ }
+);
+
+
+/* =========================================================
+   DELETE PHOTO
+   ========================================================= */
+
+$("vDelete").onclick =
+ async ()=>{
+
+  const p =
+   photos[viewerIndex];
+
+  if(!p)
+   return;
+
+
+  const ok =
+   confirm(
+    "Удалить эту фотографию?"
+   );
+
+  if(!ok)
+   return;
+
+
+  const a =
+   await sb
+    .storage
+    .from("photos")
+    .remove([
+     p.storage_path
+    ]);
+
+
+  if(a.error){
+
+   alert(a.error.message);
+
+   return;
+
+  }
+
+
+  const d =
+   await sb
+    .from("photos")
+    .delete()
+    .eq("id",p.id);
+
+
+  if(d.error){
+
+   alert(d.error.message);
+
+   return;
+
+  }
+
+
+  photos.splice(
+   viewerIndex,
+   1
+  );
+
+
+  if(!photos.length){
+
+   closeViewer();
+
+   render();
+
+   renderFolderPhotos();
+
+   updateProfile();
+
+   return;
+
+  }
+
+
+  viewerIndex =
+   Math.min(
+    viewerIndex,
+    photos.length-1
+   );
+
+
+  updateViewer();
+
+  render();
+
+  renderFolderPhotos();
+
+  renderFolders();
+
+  updateProfile();
+
+ };
+
+
+/* =========================================================
+   LOGIN
+   ========================================================= */
+
+$("loginBtn").onclick =
+ async ()=>{
+
+  msg("");
+
+  const email =
+   $("email")
+    .value
+    .trim();
+
+  const password =
+   $("password")
+    .value;
+
+
+  if(!email || !password){
+
+   msg(
+    "Введите email и пароль."
+   );
+
+   return;
+
+  }
+
+
+  const {
+   error
+  } =
+   await sb.auth
+    .signInWithPassword({
+     email,
+     password
+    });
+
+
+  if(error)
+   msg(error.message);
+
+ };
+
+
+$("password").onkeydown =
+ e=>{
+
+  if(e.key==="Enter")
+   $("loginBtn").click();
+
+ };
+
+
+/* =========================================================
+   LOGOUT
+   ========================================================= */
+
+$("logout").onclick =
+ ()=>sb.auth.signOut();
+
+
+/* =========================================================
+   TABS
+   ========================================================= */
+
+$("photosTab").onclick =
+ ()=>{
+
+  $("photosTab")
+   .classList.add("active");
+
+  $("foldersTab")
+   .classList.remove("active");
+
+  $("photosView")
+   .classList.remove("hidden");
+
+  $("foldersView")
+   .classList.add("hidden");
+
+  $("folderPage")
+   .classList.add("hidden");
+
+ };
+
+
+$("foldersTab").onclick =
+ ()=>{
+
+  $("foldersTab")
+   .classList.add("active");
+
+  $("photosTab")
+   .classList.remove("active");
+
+  $("photosView")
+   .classList.add("hidden");
+
+  $("folderPage")
+   .classList.add("hidden");
+
+  $("foldersView")
+   .classList.remove("hidden");
+
+ };
+
+
+/* =========================================================
+   BOTTOM NAV
+   ========================================================= */
+
+document
+ .querySelectorAll(".nav button")
+ .forEach(b=>{
+
+  b.onclick = ()=>{
+
+   document
+    .querySelectorAll(".nav button")
+    .forEach(x=>
+     x.classList.remove("active")
+    );
+
+
+   b.classList.add("active");
+
+
+   $("galleryPage")
+    .classList.toggle(
+     "hidden",
+     b.dataset.page!=="gallery"
+    );
+
+
+   $("profilePage")
+    .classList.toggle(
+     "hidden",
+     b.dataset.page!=="profile"
+    );
+
+  };
+
+ });
+
+
+/* =========================================================
+   START
+   ========================================================= */
+
+boot();
+
+</script>
+
+</body>
+</html>
