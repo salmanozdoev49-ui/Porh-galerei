@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Закрытая галерея</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--bg:#09090b;--panel:#151518;--panel2:#202024;--text:#f5f5f7;--muted:#9b9ba4;--red:#e53935;--line:#2a2a30}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:16px system-ui,-apple-system,Segoe UI,sans-serif}
+button,input{font:inherit}button{cursor:pointer}.hidden{display:none!important}
+.wrap{width:min(100%,1050px);margin:auto;padding:18px 14px 100px}
+header{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:18px}
+h1{font-size:24px;margin:0}.btn{border:1px solid var(--line);background:var(--panel2);color:var(--text);border-radius:12px;padding:10px 14px}.btn.red{background:var(--red);border-color:var(--red)}.btn:disabled{opacity:.5}
+.auth{min-height:100dvh;display:grid;place-items:center;padding:20px}.authbox{width:min(100%,390px);background:var(--panel);padding:24px;border:1px solid var(--line);border-radius:18px}
+.authbox h1{margin-bottom:8px}.muted{color:var(--muted);font-size:14px}.field{margin:12px 0}.field label{display:block;color:var(--muted);font-size:13px;margin-bottom:6px}.field input{width:100%;padding:12px;border-radius:11px;border:1px solid var(--line);background:#0e0e11;color:var(--text);outline:none}
+.field input:focus{border-color:#555}.msg{min-height:22px;color:#ff7773;font-size:14px;margin:10px 0}
+.toolbar{display:flex;gap:10px;align-items:center;margin-bottom:16px}.search{flex:1;padding:11px 13px;border-radius:12px;border:1px solid var(--line);background:var(--panel);color:var(--text)}
+.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.card{position:relative;aspect-ratio:3/4;border-radius:13px;overflow:hidden;background:var(--panel);border:1px solid var(--line)}.card img{width:100%;height:100%;display:block;object-fit:cover}.card .name{position:absolute;bottom:0;left:0;right:0;padding:26px 8px 8px;background:linear-gradient(transparent,rgba(0,0,0,.85));font-size:13px;font-weight:600}
+.empty{text-align:center;color:var(--muted);padding:50px 10px}.uploadbox{background:var(--panel);border:1px dashed #444;padding:18px;border-radius:15px;margin-bottom:18px}.uploadbox input{width:100%}.progress{height:5px;background:#29292e;border-radius:10px;overflow:hidden;margin-top:10px}.progress i{display:block;height:100%;width:0;background:var(--red)}
+.viewer{position:fixed;inset:0;background:rgba(0,0,0,.96);z-index:20;display:flex;align-items:center;justify-content:center}.viewer img{max-width:92vw;max-height:86vh;object-fit:contain}.vbtn{position:fixed;width:45px;height:45px;border:0;border-radius:50%;background:rgba(40,40,45,.9);color:white;font-size:25px;z-index:21}.close{top:15px;right:15px}.prev{left:14px;top:50%;transform:translateY(-50%)}.next{right:14px;top:50%;transform:translateY(-50%)}.vbottom{position:fixed;bottom:18px;left:0;right:0;display:flex;justify-content:center;gap:10px;z-index:21}.caption{position:fixed;bottom:68px;left:15px;right:15px;text-align:center;color:#ddd}.nav{position:fixed;bottom:0;left:0;right:0;background:#111114;border-top:1px solid var(--line);display:flex;justify-content:center;gap:4px;padding:8px max(8px,env(safe-area-inset-left)) calc(8px + env(safe-area-inset-bottom));z-index:10}.nav button{flex:1;max-width:220px;border:0;background:transparent;color:var(--muted);padding:8px}.nav button.active{color:white}.modal{position:fixed;inset:0;background:rgba(0,0,0,.7);display:grid;place-items:center;z-index:30;padding:16px}.modalbox{width:min(100%,430px);background:var(--panel);padding:20px;border-radius:18px;border:1px solid var(--line)}.row{display:flex;gap:10px}.row>*{flex:1}
+@media(max-width:650px){.grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}.card .name{font-size:11px;padding:20px 5px 6px}.wrap{padding-left:10px;padding-right:10px}h1{font-size:21px}}
+</style>
+</head>
+<body>
+<div id="auth" class="auth">
+ <div class="authbox">
+  <h1>🔒 Закрытая галерея</h1>
+  <p class="muted">Войдите, чтобы открыть свою галерею.</p>
+  <div class="field"><label>Email</label><input id="email" type="email" autocomplete="email"></div>
+  <div class="field"><label>Пароль</label><input id="password" type="password" autocomplete="current-password"></div>
+  <div id="authMsg" class="msg"></div>
+  <button id="loginBtn" class="btn red" style="width:100%">Войти</button>
+ </div>
+</div>
+
+<main id="app" class="wrap hidden">
+ <header><h1>Моя галерея</h1><button id="logout" class="btn">Выйти</button></header>
+ <section id="galleryPage">
+  <div class="toolbar"><input id="search" class="search" placeholder="Поиск по названию…"><button id="addBtn" class="btn red">＋ Фото</button></div>
+  <div id="grid" class="grid"></div><div id="empty" class="empty hidden">Фотографий пока нет.</div>
+ </section>
+ <section id="profilePage" class="hidden">
+  <div class="uploadbox"><h2>Профиль</h2><p id="profileEmail" class="muted"></p><p id="count"></p><button id="profileAdd" class="btn red">Добавить фотографии</button></div>
+ </section>
+</main>
+
+<nav id="nav" class="nav hidden"><button data-page="gallery" class="active">🖼 Галерея</button><button data-page="profile">👤 Профиль</button></nav>
+
+<input id="fileInput" type="file" accept="image/*" multiple class="hidden">
+
+<div id="viewer" class="viewer hidden">
+ <button class="vbtn close" id="vClose">×</button><button class="vbtn prev" id="vPrev">‹</button><img id="vImg"><button class="vbtn next" id="vNext">›</button>
+ <div id="vCaption" class="caption"></div>
+ <div class="vbottom"><button id="vDelete" class="btn">Удалить</button></div>
+</div>
+
+<div id="nameModal" class="modal hidden">
+ <div class="modalbox"><h2>Добавить фото</h2><p class="muted">Можно выбрать несколько файлов. Для каждого можно указать название.</p>
+  <div id="fileNames"></div>
+  <div class="row"><button id="cancelUpload" class="btn">Отмена</button><button id="startUpload" class="btn red">Загрузить</button></div>
+  <div class="progress"><i id="bar"></i></div>
+ </div>
+</div>
+
+<script>
+/* =========================
+   ВСТАВЬ СЮДА ДАННЫЕ SUPABASE
+   ========================= */
+const SUPABASE_URL = "ВСТАВЬ_СЮДА_PROJECT_URL";
+const SUPABASE_ANON_KEY = "ВСТАВЬ_СЮДА_ANON_KEY";
+
+const sb = supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+const $=id=>document.getElementById(id);
+let photos=[], viewerIndex=-1, pendingFiles=[], touchX=0;
+
+function configured(){return !SUPABASE_URL.includes("ВСТАВЬ_")&&!SUPABASE_ANON_KEY.includes("ВСТАВЬ_")}
+function msg(t){$("authMsg").textContent=t||""}
+function esc(s){return String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]))}
+
+async function boot(){
+ if(!configured()){msg("Сначала вставьте SUPABASE_URL и SUPABASE_ANON_KEY в HTML.");$("loginBtn").disabled=true;return}
+ const {data:{session}}=await sb.auth.getSession();
+ if(session) showApp(session.user); else showAuth();
+ sb.auth.onAuthStateChange((_e,s)=>s?showApp(s.user):showAuth());
+}
+function showAuth(){$("auth").classList.remove("hidden");$("app").classList.add("hidden");$("nav").classList.add("hidden")}
+async function showApp(user){$("auth").classList.add("hidden");$("app").classList.remove("hidden");$("nav").classList.remove("hidden");$("profileEmail").textContent=user.email||"";await loadPhotos()}
+async function loadPhotos(){
+ const {data,error}=await sb.from("photos").select("*").order("created_at",{ascending:false});
+ if(error){alert(error.message);return}
+ photos=data||[];render();
+}
+function render(){
+ const q=$("search").value.trim().toLowerCase();
+ const list=photos.filter(p=>(p.title||"").toLowerCase().includes(q));
+ $("grid").innerHTML=list.map((p)=>{
+   const i=photos.findIndex(x=>x.id===p.id);
+   return `<div class="card" data-i="${i}"><img src="${esc(p.public_url)}" loading="lazy" alt=""><div class="name">${esc(p.title||"Без названия")}</div></div>`;
+ }).join("");
+ $("empty").classList.toggle("hidden",list.length!==0);
+ $("count").textContent=`Фотографий: ${photos.length}`;
+ [...document.querySelectorAll(".card")].forEach(c=>c.onclick=()=>openViewer(+c.dataset.i));
+}
+$("search").oninput=render;
+$("loginBtn").onclick=async()=>{
+ msg("");const email=$("email").value.trim(),password=$("password").value;
+ if(!email||!password){msg("Введите email и пароль.");return}
+ const {error}=await sb.auth.signInWithPassword({email,password});
+ if(error)msg(error.message);
+};
+$("password").onkeydown=e=>{if(e.key==="Enter")$("loginBtn").click()};
+$("logout").onclick=()=>sb.auth.signOut();
+
+function chooseFiles(){ $("fileInput").click() }
+$("addBtn").onclick=chooseFiles;$("profileAdd").onclick=chooseFiles;
+$("fileInput").onchange=()=>{
+ pendingFiles=[...$("fileInput").files]; if(!pendingFiles.length)return;
+ $("fileNames").innerHTML=pendingFiles.map((f,i)=>`<div class="field"><label>${esc(f.name)}</label><input data-title="${i}" placeholder="Название (необязательно)" value="${esc(f.name.replace(/\.[^.]+$/,""))}"></div>`).join("");
+ $("nameModal").classList.remove("hidden");
+};
+$("cancelUpload").onclick=()=>{$("nameModal").classList.add("hidden");pendingFiles=[];$("fileInput").value=""};
+$("startUpload").onclick=uploadFiles;
+
+async function uploadFiles(){
+ const {data:{user}}=await sb.auth.getUser();if(!user)return;
+ $("startUpload").disabled=true;let done=0;
+ const inputs=[...document.querySelectorAll("[data-title]")];
+ for(let i=0;i<pendingFiles.length;i++){
+  const f=pendingFiles[i];
+  const ext=(f.name.split(".").pop()||"jpg").toLowerCase().replace(/[^a-z0-9]/g,"");
+  const path=`${user.id}/${crypto.randomUUID()}.${ext}`;
+  const up=await sb.storage.from("photos").upload(path,f,{upsert:false,contentType:f.type});
+  if(up.error){alert(`Ошибка ${f.name}: ${up.error.message}`);continue}
+  const {data:pub}=sb.storage.from("photos").getPublicUrl(path);
+  const title=inputs[i]?.value?.trim()||f.name;
+  const ins=await sb.from("photos").insert({user_id:user.id,title,storage_path:path,public_url:pub.publicUrl}).select().single();
+  if(ins.error){await sb.storage.from("photos").remove([path]);alert(ins.error.message);continue}
+  done++;$("bar").style.width=Math.round(done/pendingFiles.length*100)+"%";
+ }
+ $("startUpload").disabled=false;$("nameModal").classList.add("hidden");pendingFiles=[];$("fileInput").value="";$("bar").style.width="0";await loadPhotos();
+}
+
+function openViewer(i){if(i<0||!photos[i])return;viewerIndex=i;updateViewer();$("viewer").classList.remove("hidden");document.body.style.overflow="hidden"}
+function updateViewer(){const p=photos[viewerIndex];$("vImg").src=p.public_url;$("vCaption").textContent=p.title||"Без названия"}
+function closeViewer(){$("viewer").classList.add("hidden");document.body.style.overflow=""}
+function next(){if(!photos.length)return;viewerIndex=(viewerIndex+1)%photos.length;updateViewer()}
+function prev(){if(!photos.length)return;viewerIndex=(viewerIndex-1+photos.length)%photos.length;updateViewer()}
+$("vClose").onclick=closeViewer;$("vNext").onclick=next;$("vPrev").onclick=prev;
+document.addEventListener("keydown",e=>{if($("viewer").classList.contains("hidden"))return;if(e.key==="Escape")closeViewer();if(e.key==="ArrowRight")next();if(e.key==="ArrowLeft")prev()});
+$("viewer").addEventListener("touchstart",e=>touchX=e.changedTouches[0].clientX,{passive:true});
+$("viewer").addEventListener("touchend",e=>{const dx=e.changedTouches[0].clientX-touchX;if(Math.abs(dx)>50)dx<0?next():prev()},{passive:true});
+$("vDelete").onclick=async()=>{
+ const p=photos[viewerIndex];if(!p||!confirm("Удалить эту фотографию?"))return;
+ const a=await sb.storage.from("photos").remove([p.storage_path]);
+ if(a.error){alert(a.error.message);return}
+ const d=await sb.from("photos").delete().eq("id",p.id);
+ if(d.error){alert(d.error.message);return}
+ photos.splice(viewerIndex,1);if(!photos.length){closeViewer();render();return}
+ viewerIndex=Math.min(viewerIndex,photos.length-1);updateViewer();render();
+};
+
+document.querySelectorAll(".nav button").forEach(b=>b.onclick=()=>{
+ document.querySelectorAll(".nav button").forEach(x=>x.classList.remove("active"));b.classList.add("active");
+ $("galleryPage").classList.toggle("hidden",b.dataset.page!=="gallery");$("profilePage").classList.toggle("hidden",b.dataset.page!=="profile");
+});
+boot();
+</script>
+</body>
+</html>
